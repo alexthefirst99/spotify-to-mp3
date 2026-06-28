@@ -1,0 +1,29 @@
+name: Build Windows .exe
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyinstaller spotdl flask yt-dlp
+
+      - name: Build .exe
+        run: pyinstaller spotify_to_mp3.spec --noconfirm
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/Spotify to MP3.exe
