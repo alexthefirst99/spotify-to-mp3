@@ -424,6 +424,27 @@ input[type=text]:disabled {
 .failed-list ul { padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }
 .failed-list li { opacity: 0.8; }
 
+/* ── manual download card ── */
+.manual-header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+
+.manual-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.manual-sub {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
 /* ── animations ── */
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -466,6 +487,34 @@ input[type=text]:disabled {
     </button>
 
     <div id="status-msg"></div>
+  </div>
+
+  <!-- ── Manual YouTube download ── -->
+  <div class="card">
+    <div class="manual-header">
+      <span class="manual-title">Download from YouTube URL</span>
+      <span class="manual-sub">Use this when a song downloaded the wrong version — paste both URLs to get the right file name from Spotify and the right audio from YouTube</span>
+    </div>
+
+    <div class="field">
+      <label for="sp-url">Spotify Track URL</label>
+      <input type="text" id="sp-url"
+             placeholder="https://open.spotify.com/track/…"
+             autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="field">
+      <label for="yt-url">YouTube URL</label>
+      <input type="text" id="yt-url"
+             placeholder="https://www.youtube.com/watch?v=…"
+             autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="error-msg" id="yt-error-msg"></div>
+
+    <button class="btn-primary" id="yt-btn" onclick="downloadFromUrl()">
+      Download from YouTube
+    </button>
   </div>
 
   <div id="progress-section">
@@ -522,10 +571,10 @@ function setLoading(on) {
   $('dl-btn').textContent = on ? 'Downloading…' : 'Download Songs';
 }
 
-function resetUI() {
+function resetUI(keepForm) {
   setError('');
   setStatus('');
-  setLoading(false);
+  if (!keepForm) setLoading(false);
   $('progress-section').classList.remove('visible');
   $('done-banner').classList.remove('visible');
   $('track-list').innerHTML = '';
@@ -568,14 +617,14 @@ async function startDownload() {
   }
 
   const { job_id } = await res.json();
-  listenProgress(job_id);
+  listenProgress(job_id, null);
 }
 
-function listenProgress(jobId) {
+function listenProgress(jobId, onDone) {
   const es = new EventSource(`/progress/${jobId}`);
 
   es.onmessage = ({ data }) => {
-    if (data === '[DONE]') { es.close(); setLoading(false); return; }
+    if (data === '[DONE]') { es.close(); setLoading(false); if (onDone) onDone(); return; }
 
     let msg;
     try { msg = JSON.parse(data); } catch { return; }
@@ -606,7 +655,7 @@ function listenProgress(jobId) {
     }
   };
 
-  es.onerror = () => { es.close(); setLoading(false); };
+  es.onerror = () => { es.close(); setLoading(false); if (onDone) onDone(); };
 }
 
 function addRow(i, total, artist, title) {
@@ -666,6 +715,63 @@ async function openFolder() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path: currentOut }),
+  });
+}
+
+async function downloadFromUrl() {
+  const spUrl = $('sp-url').value.trim();
+  const ytUrl = $('yt-url').value.trim();
+  const out   = $('out-input').value.trim();
+
+  const errEl = $('yt-error-msg');
+  errEl.textContent = '';
+  errEl.classList.remove('visible');
+
+  if (!spUrl) {
+    errEl.textContent = 'Paste a Spotify track URL first.';
+    errEl.classList.add('visible');
+    return;
+  }
+  if (!ytUrl) {
+    errEl.textContent = 'Paste a YouTube URL first.';
+    errEl.classList.add('visible');
+    return;
+  }
+
+  $('yt-btn').disabled = true;
+  $('yt-btn').textContent = 'Downloading…';
+
+  // Reset and show the shared progress section
+  resetUI(true);
+
+  let res;
+  try {
+    res = await fetch('/download-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ spotify_url: spUrl, yt_url: ytUrl, out }),
+    });
+  } catch {
+    errEl.textContent = 'Could not reach the local server.';
+    errEl.classList.add('visible');
+    $('yt-btn').disabled = false;
+    $('yt-btn').textContent = 'Download from YouTube';
+    return;
+  }
+
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    errEl.textContent = d.error || 'Something went wrong.';
+    errEl.classList.add('visible');
+    $('yt-btn').disabled = false;
+    $('yt-btn').textContent = 'Download from YouTube';
+    return;
+  }
+
+  const { job_id } = await res.json();
+  listenProgress(job_id, () => {
+    $('yt-btn').disabled = false;
+    $('yt-btn').textContent = 'Download from YouTube';
   });
 }
 

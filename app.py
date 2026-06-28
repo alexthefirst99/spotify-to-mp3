@@ -5,6 +5,7 @@ import queue
 import uuid
 import json
 import os
+import re
 import sys
 import subprocess
 from pathlib import Path
@@ -13,6 +14,7 @@ from spotdl import Spotdl
 from spotdl.utils.spotify import SpotifyClient
 from spotdl.utils.config import DEFAULT_CONFIG
 from spotdl.utils.formatter import create_file_name
+from spotdl.utils.metadata import embed_metadata
 from spotdl.types.playlist import Playlist
 from spotdl.types.song import Song
 
@@ -140,6 +142,72 @@ def index():
     return render_template("index.html", default_out=default_out)
 
 
+def _url_worker(job_id: str, spotify_url: str, yt_url: str, out_dir: str):
+    """Fetch metadata from Spotify, download audio from a YouTube URL using yt-dlp."""
+    q = _jobs[job_id]
+
+    def emit(d):
+        q.put(json.dumps(d))
+
+    try:
+        emit({"type": "status", "msg": "Fetching song info from Spotify…"})
+
+        # SpotifyClient is a singleton — hold the lock while we init + fetch metadata
+        with _spotdl_lock:
+            _make_spotdl(out_dir)
+            song = Song.from_url(spotify_url)
+
+        emit({"type": "start", "total": 1})
+        emit({"type": "track_start", "i": 1, "total": 1,
+              "title": song.name, "artist": song.artist})
+
+        if _already_downloaded(out_dir, song):
+            emit({"type": "track_done", "i": 1, "ok": True, "skipped": True})
+            emit({"type": "complete", "ok": 0, "skipped": 1, "total": 1,
+                  "failed": [], "out": out_dir})
+            return
+
+        Path(out_dir).mkdir(parents=True, exist_ok=True)
+
+        # Output path uses the same naming convention as spotdl
+        template = str(Path(out_dir) / _OUTPUT_TEMPLATE)
+        expected_path = create_file_name(song, template, "mp3")
+        yt_out = str(expected_path.parent / (expected_path.stem + ".%(ext)s"))
+
+        # Strip playlist/mix params so yt-dlp downloads only this video
+        clean_url = re.sub(r'&list=[^&]*', '', yt_url).split('&si=')[0]
+
+        cmd = [
+            "yt-dlp", clean_url,
+            "--extract-audio",
+            "--audio-format", "mp3",
+            "--audio-quality", "0",
+            "--output", yt_out,
+            "--no-playlist",
+            "--extractor-args", "youtube:player_client=android,ios",
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "yt-dlp failed")
+
+        # Overwrite ID3 tags with Spotify metadata (album art, artist, title, etc.)
+        try:
+            embed_metadata(expected_path, song)
+        except Exception:
+            pass  # tags are a nice-to-have; don't fail the whole download
+
+        emit({"type": "track_done", "i": 1, "ok": True, "skipped": False})
+        emit({"type": "complete", "ok": 1, "skipped": 0, "total": 1,
+              "failed": [], "out": out_dir})
+
+    except Exception as err:
+        emit({"type": "track_done", "i": 1, "ok": False})
+        emit({"type": "error", "msg": str(err)})
+    finally:
+        q.put(None)
+
+
 @app.route("/start", methods=["POST"])
 def start():
     d = request.get_json(force=True) or {}
@@ -173,6 +241,22 @@ def progress(jid):
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@app.route("/download-url", methods=["POST"])
+def download_url():
+    d = request.get_json(force=True) or {}
+    spotify_url = (d.get("spotify_url") or "").strip()
+    yt_url      = (d.get("yt_url") or "").strip()
+    out         = (d.get("out") or "").strip() or str(Path.home() / "Downloads" / "Spotify_MP3")
+    if not spotify_url:
+        return jsonify(error="Paste a Spotify track URL first."), 400
+    if not yt_url:
+        return jsonify(error="Paste a YouTube URL first."), 400
+    jid = str(uuid.uuid4())
+    _jobs[jid] = queue.Queue()
+    threading.Thread(target=_url_worker, args=(jid, spotify_url, yt_url, out), daemon=True).start()
+    return jsonify(job_id=jid)
 
 
 @app.route("/open", methods=["POST"])

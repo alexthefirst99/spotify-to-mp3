@@ -21,13 +21,15 @@ for /f "tokens=2" %%v in ('python --version 2^>^&1') do echo [OK] Python %%v
 python -c "import spotdl, flask" >nul 2>&1
 if errorlevel 1 (
     echo Installing packages (first run only)...
-    pip install spotdl flask -q --disable-pip-version-check
+    pip install spotdl flask yt-dlp -q --disable-pip-version-check
     if errorlevel 1 (
         echo [ERROR] Package install failed. Try running as Administrator.
         pause
         exit /b 1
     )
 )
+echo Updating yt-dlp...
+pip install -U yt-dlp -q --disable-pip-version-check
 echo [OK] Packages ready
 
 :: Install Deno for YouTube Music support
