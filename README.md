@@ -1,8 +1,12 @@
 # Spotify to MP3
 
-Download Spotify playlists and tracks as MP3 files.
+Download Spotify playlists and tracks as MP3 files. Works with any MP3 player.
 
-## Quick start
+## Download (Windows, no install needed)
+
+Go to [Releases](../../releases/latest) and download **Spotify to MP3.exe**. Double-click to launch — no Python, no setup.
+
+## Mac / Windows with Python
 
 **Mac** — double-click `run.command`
 
@@ -10,36 +14,34 @@ Download Spotify playlists and tracks as MP3 files.
 
 The app opens in your browser at `http://127.0.0.1:5001`. Python must be installed — the script handles everything else automatically on first run.
 
-> Don't have Python? Use the standalone app below — no installs needed.
-
 ## How to use
 
 1. Copy a Spotify playlist or track URL
-2. Paste it into the app
-3. Click **Download Songs**
+2. Paste it into the app and click **Download Songs**
 
-Songs are matched by ISRC code on YouTube Music, with YouTube and SoundCloud as fallbacks. Songs already in the output folder are skipped automatically.
+Songs are saved as MP3 files in your Downloads folder. Songs already downloaded are skipped automatically.
 
-## Standalone app for Windows (no Python required)
+### Wrong version downloaded?
 
-Double-click `build.bat` to build. Output: `dist\Spotify to MP3.exe`
+Use the **Download from YouTube URL** card at the bottom:
 
-The `.exe` is ~150–200 MB and includes everything bundled inside. Right-click → **Send to → Desktop (create shortcut)** for easy access.
+1. Copy the Spotify track URL for correct metadata
+2. Find the right version on YouTube, copy that URL
+3. Paste both — the app downloads the YouTube audio with the Spotify album art and tags
 
 ## Known limitations
 
-- **Liked Songs** is a private playlist and cannot be downloaded — move songs into a regular playlist first
-- Songs may fail if geo-blocked in your region or unavailable on all providers
-- Songs with non-Latin titles may occasionally fail to match
+- **Liked Songs** cannot be downloaded — it's a private playlist. Move songs into a regular playlist first
+- Songs may fail if geo-blocked or unavailable on all providers
 - Each song takes roughly 30–45 seconds to download
 
 ## Files
 
 ```
-run.command           double-click to launch on Mac (requires Python)
-run.bat               double-click to launch on Windows (requires Python)
-build.bat             build standalone .exe for Windows (no Python needed)
+run.command           launch on Mac (requires Python)
+run.bat               launch on Windows (requires Python)
+build.bat             build the .exe (requires Python, for developers only)
 app.py                backend
 templates/index.html  web UI
-spotify_to_mp3.spec   PyInstaller config (for building)
+spotify_to_mp3.spec   PyInstaller config
 ```
