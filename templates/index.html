@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spotify → iPod</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #0C0B11;
+  --card:        #131222;
+  --raised:      #1B1A2E;
+  --border:      #252438;
+  --border-sub:  #1A192A;
+  --accent:      #7C6FF7;
+  --accent-hi:   #9D93F9;
+  --accent-dim:  rgba(124, 111, 247, 0.12);
+  --text:        #E8E8F4;
+  --text-2:      #5A5876;
+  --text-3:      #2E2D44;
+  --green:       #34D399;
+  --green-bg:    rgba(52, 211, 153, 0.07);
+  --green-border:rgba(52, 211, 153, 0.2);
+  --red:         #F87171;
+  --red-bg:      rgba(248, 113, 113, 0.07);
+  --red-border:  rgba(248, 113, 113, 0.2);
+  --r:           10px;
+}
+
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+  background-image: radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 22px 22px;
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  padding: 56px 20px 80px;
+}
+
+main {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── header ── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+.logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(124, 111, 247, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  flex-shrink: 0;
+  box-shadow: 0 0 20px rgba(124, 111, 247, 0.15);
+}
+
+.header-text h1 {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text);
+}
+
+.header-text p {
+  font-size: 12.5px;
+  color: var(--text-2);
+  margin-top: 1px;
+}
+
+/* ── card ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── fields ── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+label {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+input[type=text] {
+  width: 100%;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-size: 14px;
+  color: var(--text);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+input[type=text]::placeholder { color: var(--text-3); }
+
+input[type=text]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+input[type=text]:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── error ── */
+.error-msg {
+  background: var(--red-bg);
+  border: 1px solid var(--red-border);
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-size: 13px;
+  color: var(--red);
+  display: none;
+  line-height: 1.4;
+}
+.error-msg.visible { display: block; }
+
+/* ── button ── */
+.btn-primary {
+  width: 100%;
+  padding: 12px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+}
+
+.btn-primary:hover:not(:disabled) { background: var(--accent-hi); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── status line ── */
+#status-msg {
+  font-size: 12.5px;
+  color: var(--text-2);
+  text-align: center;
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+#status-msg.visible::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-2);
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ── progress section ── */
+#progress-section {
+  display: none;
+  flex-direction: column;
+}
+
+#progress-section.visible {
+  display: flex;
+  animation: riseIn 0.25s ease both;
+}
+
+.prog-header {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--r) var(--r) 0 0;
+  padding: 14px 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.prog-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.prog-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.prog-count {
+  font-size: 12.5px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.prog-bar {
+  height: 2px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.prog-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hi));
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── track list ── */
+.track-list {
+  border: 1px solid var(--border);
+  border-radius: 0 0 var(--r) var(--r);
+  overflow: hidden;
+  max-height: 380px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  background: var(--card);
+}
+
+.track-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border-sub);
+  min-height: 46px;
+  animation: riseIn 0.2s ease both;
+  transition: background 0.15s;
+}
+
+.track-row:last-child { border-bottom: none; }
+.track-row.is-active { background: var(--raised); }
+
+.track-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 0.75s linear infinite;
+}
+
+.icon-ok     { color: var(--green); font-size: 13px; font-weight: 700; }
+.icon-fail   { color: var(--red);  font-size: 13px; font-weight: 700; }
+.icon-skip   { color: var(--text-3); font-size: 13px; font-weight: 700; }
+
+.track-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.track-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-row.is-skipped .track-title,
+.track-row.is-skipped .track-artist {
+  opacity: 0.35;
+}
+
+.track-artist {
+  font-size: 12px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.track-num {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── completion ── */
+#done-banner {
+  display: none;
+  background: var(--green-bg);
+  border: 1px solid var(--green-border);
+  border-radius: var(--r);
+  padding: 20px;
+  flex-direction: column;
+  gap: 14px;
+  animation: riseIn 0.25s ease both;
+}
+
+#done-banner.visible { display: flex; }
+
+.done-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.done-check {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--green-bg);
+  border: 1px solid var(--green-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--green);
+  flex-shrink: 0;
+}
+
+.done-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--green);
+  letter-spacing: -0.01em;
+}
+
+.done-sub {
+  font-size: 12.5px;
+  color: var(--text-2);
+  word-break: break-all;
+}
+
+.done-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-secondary {
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+
+.btn-secondary:hover {
+  background: var(--raised);
+  border-color: var(--accent);
+}
+
+.failed-list {
+  font-size: 12px;
+  color: var(--red);
+  padding-top: 12px;
+  border-top: 1px solid rgba(248, 113, 113, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.failed-list-title { font-weight: 600; margin-bottom: 2px; }
+.failed-list ul { padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }
+.failed-list li { opacity: 0.8; }
+
+/* ── animations ── */
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+<main>
+
+  <div class="header">
+    <div class="logo">♪</div>
+    <div class="header-text">
+      <h1>Spotify → iPod</h1>
+      <p>Download playlist songs as MP3 files</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="field">
+      <label for="url-input">Spotify Playlist URL</label>
+      <input type="text" id="url-input"
+             placeholder="https://open.spotify.com/playlist/…"
+             autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="field">
+      <label for="out-input">Save to</label>
+      <input type="text" id="out-input"
+             value="{{ default_out }}"
+             autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="error-msg" id="error-msg"></div>
+
+    <button class="btn-primary" id="dl-btn" onclick="startDownload()">
+      Download Songs
+    </button>
+
+    <div id="status-msg"></div>
+  </div>
+
+  <div id="progress-section">
+    <div class="prog-header">
+      <div class="prog-meta">
+        <span class="prog-label">Downloading</span>
+        <span class="prog-count" id="prog-count">—</span>
+      </div>
+      <div class="prog-bar">
+        <div class="prog-bar-fill" id="prog-fill"></div>
+      </div>
+    </div>
+    <div class="track-list" id="track-list"></div>
+  </div>
+
+  <div id="done-banner">
+    <div class="done-top">
+      <div class="done-check">✓</div>
+      <div class="done-title" id="done-title"></div>
+    </div>
+    <div class="done-sub" id="done-sub"></div>
+    <div class="done-actions">
+      <button class="btn-secondary" onclick="openFolder()">Open Folder in Finder</button>
+      <button class="btn-secondary" onclick="resetUI()">Download Another Playlist</button>
+    </div>
+    <div class="failed-list" id="failed-list" style="display:none"></div>
+  </div>
+
+</main>
+
+<script>
+let currentOut = '';
+let trackRows = {};
+let totalTracks = 0;
+
+const $ = id => document.getElementById(id);
+
+function setError(msg) {
+  const el = $('error-msg');
+  el.textContent = msg;
+  el.classList.toggle('visible', !!msg);
+}
+
+function setStatus(msg) {
+  const el = $('status-msg');
+  el.textContent = msg;
+  el.classList.toggle('visible', !!msg);
+}
+
+function setLoading(on) {
+  $('dl-btn').disabled = on;
+  $('url-input').disabled = on;
+  $('out-input').disabled = on;
+  $('dl-btn').textContent = on ? 'Downloading…' : 'Download Songs';
+}
+
+function resetUI() {
+  setError('');
+  setStatus('');
+  setLoading(false);
+  $('progress-section').classList.remove('visible');
+  $('done-banner').classList.remove('visible');
+  $('track-list').innerHTML = '';
+  $('prog-fill').style.width = '0%';
+  $('prog-count').textContent = '—';
+  $('failed-list').style.display = 'none';
+  trackRows = {};
+  totalTracks = 0;
+}
+
+async function startDownload() {
+  setError('');
+  const url = $('url-input').value.trim();
+  const out = $('out-input').value.trim();
+  if (!url) {
+    setError('Paste a Spotify playlist URL to get started.');
+    return;
+  }
+  currentOut = out;
+  setLoading(true);
+
+  let res;
+  try {
+    res = await fetch('/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, out }),
+    });
+  } catch {
+    setError('Could not reach the local server. Make sure app.py is running.');
+    setLoading(false);
+    return;
+  }
+
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    setError(d.error || 'Something went wrong.');
+    setLoading(false);
+    return;
+  }
+
+  const { job_id } = await res.json();
+  listenProgress(job_id);
+}
+
+function listenProgress(jobId) {
+  const es = new EventSource(`/progress/${jobId}`);
+
+  es.onmessage = ({ data }) => {
+    if (data === '[DONE]') { es.close(); setLoading(false); return; }
+
+    let msg;
+    try { msg = JSON.parse(data); } catch { return; }
+
+    if (msg.type === 'status') {
+      setStatus(msg.msg);
+
+    } else if (msg.type === 'start') {
+      totalTracks = msg.total;
+      setStatus('');
+      $('prog-count').textContent = `0 of ${msg.total}`;
+      $('progress-section').classList.add('visible');
+
+    } else if (msg.type === 'track_start') {
+      addRow(msg.i, msg.total, msg.artist, msg.title);
+
+    } else if (msg.type === 'track_done') {
+      finishRow(msg.i, msg.ok, msg.skipped);
+      $('prog-count').textContent = `${msg.i} of ${totalTracks}`;
+      $('prog-fill').style.width = `${(msg.i / totalTracks) * 100}%`;
+
+    } else if (msg.type === 'complete') {
+      showDone(msg);
+
+    } else if (msg.type === 'error') {
+      setError(msg.msg);
+      setLoading(false);
+    }
+  };
+
+  es.onerror = () => { es.close(); setLoading(false); };
+}
+
+function addRow(i, total, artist, title) {
+  const list = $('track-list');
+  const row = document.createElement('div');
+  row.className = 'track-row is-active';
+  row.id = `r${i}`;
+  row.innerHTML = `
+    <div class="track-icon"><div class="spinner"></div></div>
+    <div class="track-info">
+      <div class="track-title">${esc(title)}</div>
+      <div class="track-artist">${esc(artist)}</div>
+    </div>
+    <div class="track-num">${i}</div>
+  `;
+  list.appendChild(row);
+  list.scrollTop = list.scrollHeight;
+  trackRows[i] = row;
+}
+
+function finishRow(i, ok, skipped) {
+  const row = trackRows[i];
+  if (!row) return;
+  row.classList.remove('is-active');
+  if (skipped) {
+    row.classList.add('is-skipped');
+    row.querySelector('.track-icon').innerHTML = '<span class="icon-skip">–</span>';
+  } else {
+    row.querySelector('.track-icon').innerHTML = ok
+      ? '<span class="icon-ok">✓</span>'
+      : '<span class="icon-fail">✗</span>';
+  }
+}
+
+function showDone(msg) {
+  const parts = [];
+  if (msg.ok > 0) parts.push(`${msg.ok} downloaded`);
+  if (msg.skipped > 0) parts.push(`${msg.skipped} already existed`);
+  if (msg.failed && msg.failed.length) parts.push(`${msg.failed.length} failed`);
+  $('done-title').textContent = parts.join(' · ');
+  $('done-sub').textContent = `Saved to: ${msg.out}`;
+
+  if (msg.failed && msg.failed.length) {
+    const el = $('failed-list');
+    el.style.display = '';
+    el.innerHTML = `<div class="failed-list-title">${msg.failed.length} failed to download</div>
+      <ul>${msg.failed.map(f => `<li>${esc(f)}</li>`).join('')}</ul>`;
+  }
+
+  $('done-banner').classList.add('visible');
+  setStatus('');
+  setLoading(false);
+}
+
+async function openFolder() {
+  await fetch('/open', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: currentOut }),
+  });
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+</script>
+</body>
+</html>
