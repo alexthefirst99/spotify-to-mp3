@@ -5,12 +5,18 @@ Download Spotify playlists and tracks as MP3 files. Built for transferring music
 ## Requirements
 
 - Python 3.8+
-- macOS (uses Chrome cookies for age-restricted videos)
+- Chrome (for age-restricted video support)
 
 ## Usage
 
+**macOS / Linux**
 ```bash
 ./run.sh
+```
+
+**Windows**
+```
+run.bat
 ```
 
 On first run this will install all dependencies and open the app at `http://127.0.0.1:5001` automatically.
@@ -42,7 +48,8 @@ Songs are found on YouTube Music (matched by ISRC code), with YouTube and SoundC
 ## Files
 
 ```
-run.sh          — start the app (handles all setup)
+run.sh          — start the app on macOS/Linux
+run.bat         — start the app on Windows
 app.py          — Flask backend
 templates/
   index.html    — web UI

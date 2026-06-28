@@ -5,6 +5,7 @@ import queue
 import uuid
 import json
 import os
+import sys
 import subprocess
 from pathlib import Path
 
@@ -173,7 +174,12 @@ def open_folder():
     d = request.get_json(force=True) or {}
     path = d.get("path", "")
     if path and os.path.isdir(path):
-        subprocess.Popen(["open", path])
+        if sys.platform == "win32":
+            subprocess.Popen(["explorer", path])
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", path])
+        else:
+            subprocess.Popen(["xdg-open", path])
     return "", 204
 
 
