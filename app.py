@@ -16,7 +16,13 @@ from spotdl.utils.formatter import create_file_name
 from spotdl.types.playlist import Playlist
 from spotdl.types.song import Song
 
-app = Flask(__name__)
+# Resolve base directory — handles source, onefile bundle, and onedir .app bundle
+if getattr(sys, "frozen", False):
+    _BASE_DIR = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+else:
+    _BASE_DIR = Path(__file__).parent
+
+app = Flask(__name__, template_folder=str(_BASE_DIR / "templates"))
 _jobs = {}
 _spotdl_lock = threading.Lock()  # one download at a time (spotdl has a global spotify singleton)
 
@@ -185,6 +191,16 @@ def open_folder():
 
 if __name__ == "__main__":
     import webbrowser
+
+    # Download Deno for YouTube Music support (skips if already installed)
+    try:
+        from spotdl.utils.deno import download_deno, is_deno_installed
+        if not is_deno_installed():
+            print("Downloading Deno for YouTube Music support (one-time setup)...")
+            download_deno()
+    except Exception:
+        pass
+
     threading.Timer(0.8, lambda: webbrowser.open("http://127.0.0.1:5001")).start()
-    print("Starting Spotify → iPod at http://127.0.0.1:5001")
+    print("Starting Spotify to MP3 at http://127.0.0.1:5001")
     app.run(port=5001, threaded=True)
