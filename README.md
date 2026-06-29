@@ -2,10 +2,6 @@
 
 Download Spotify playlists and tracks as MP3 files. Works with any MP3 player.
 
-## Download (Windows, no install needed)
-
-Go to [Releases](../../releases/latest) and download **Spotify to MP3.exe**. Double-click to launch — no Python, no setup.
-
 ## Mac / Windows with Python
 
 **Mac** — double-click `run.command`
@@ -62,8 +58,6 @@ Use the **Download from YouTube URL** card at the bottom:
 ```
 run.command           launch on Mac (requires Python)
 run.bat               launch on Windows (requires Python)
-build.bat             build the .exe (requires Python, for developers only)
 app.py                backend
 templates/index.html  web UI
-spotify_to_mp3.spec   PyInstaller config
 ```
