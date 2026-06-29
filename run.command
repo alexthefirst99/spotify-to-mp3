@@ -31,8 +31,8 @@ if ! python -c "import spotdl, flask" &>/dev/null 2>&1; then
     echo "  Installing packages (first run only)..."
     pip install spotdl flask yt-dlp -q --disable-pip-version-check
 fi
-echo "  Updating yt-dlp..."
-pip install -U yt-dlp -q --disable-pip-version-check
+echo "  Updating download tools..."
+pip install -U spotdl yt-dlp -q --disable-pip-version-check
 echo -e "${GREEN}✓${RESET} Packages ready"
 
 # ── 4. Deno (YouTube Music support) ──────────────────────

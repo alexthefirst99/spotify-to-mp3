@@ -14,6 +14,28 @@ Go to [Releases](../../releases/latest) and download **Spotify to MP3.exe**. Dou
 
 The app opens in your browser at `http://127.0.0.1:5001`. Python must be installed — the script handles everything else automatically on first run.
 
+## Spotify API setup
+
+Spotify playlist metadata requires a free Spotify Developer app:
+
+1. Go to https://developer.spotify.com/dashboard and create an app
+2. Add this redirect URI in the app settings:
+
+```
+http://127.0.0.1:9900/
+```
+
+3. Copy `.env.example` to `.env`
+4. Paste your app credentials into `.env`:
+
+```
+SPOTIPY_CLIENT_ID=...
+SPOTIPY_CLIENT_SECRET=...
+```
+
+This avoids spotDL's public bundled credentials, which can get rate-limited and cause errors like `Could not get general hashes`.
+The first download may open a Spotify authorization page. Log in and approve it once; the token is cached for future runs.
+
 ## How to use
 
 1. Copy a Spotify playlist or track URL

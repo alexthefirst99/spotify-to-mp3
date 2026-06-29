@@ -12,7 +12,6 @@ from pathlib import Path
 
 from spotdl import Spotdl
 from spotdl.utils.spotify import SpotifyClient
-from spotdl.utils.config import DEFAULT_CONFIG
 from spotdl.utils.formatter import create_file_name
 from spotdl.utils.metadata import embed_metadata
 from spotdl.types.playlist import Playlist
@@ -28,21 +27,52 @@ app = Flask(__name__, template_folder=str(_BASE_DIR / "templates"))
 _jobs = {}
 _spotdl_lock = threading.Lock()  # one download at a time (spotdl has a global spotify singleton)
 
-# Use spotdl's own bundled credentials — no user setup required
-_CLIENT_ID = DEFAULT_CONFIG["client_id"]
-_CLIENT_SECRET = DEFAULT_CONFIG["client_secret"]
+def _load_env_file() -> None:
+    """Load simple KEY=VALUE pairs from a local .env file, if present."""
+    env_path = _BASE_DIR / ".env"
+    if not env_path.exists():
+        return
+
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_env_file()
+
+# spotDL's bundled credentials can be rate-limited globally. Use credentials from
+# a local Spotify Developer app so metadata requests avoid the brittle hash path.
+_CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID") or os.getenv("SPOTIFY_CLIENT_ID")
+_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET") or os.getenv("SPOTIFY_CLIENT_SECRET")
+_SPOTIFY_SETUP_MSG = (
+    "Spotify API credentials are required. Create a Spotify Developer app, then "
+    "add SPOTIPY_CLIENT_ID and SPOTIPY_CLIENT_SECRET to a .env file next to app.py. "
+    "Set the app redirect URI to http://127.0.0.1:9900/."
+)
 
 
 _OUTPUT_TEMPLATE = "{artists} - {title}.{output-ext}"
 
 
 def _make_spotdl(out_dir: str) -> Spotdl:
+    if not _CLIENT_ID or not _CLIENT_SECRET:
+        raise RuntimeError(_SPOTIFY_SETUP_MSG)
+
     SpotifyClient._instance = None  # reset singleton so we can reinit with fresh settings
     return Spotdl(
         client_id=_CLIENT_ID,
         client_secret=_CLIENT_SECRET,
-        headless=True,
-        no_cache=True,
+        user_auth=True,
+        cache_path=str(_BASE_DIR / ".spotify-token-cache"),
+        headless=False,
+        no_cache=False,
+        use_official_api=True,
         downloader_settings={
             "output": str(Path(out_dir) / _OUTPUT_TEMPLATE),
             "format": "mp3",

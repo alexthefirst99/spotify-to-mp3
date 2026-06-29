@@ -28,8 +28,8 @@ if errorlevel 1 (
         exit /b 1
     )
 )
-echo Updating yt-dlp...
-pip install -U yt-dlp -q --disable-pip-version-check
+echo Updating download tools...
+pip install -U spotdl yt-dlp -q --disable-pip-version-check
 echo [OK] Packages ready
 
 :: Install Deno for YouTube Music support
